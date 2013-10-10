@@ -34,14 +34,6 @@
     'use strict';
 
     /**
-     * Flag to determine if touch is supported
-     *
-     * @type {boolean}
-     * @constant
-     */
-    var TOUCH = $.support.touch = !!(('ontouchstart' in window) || window.DocumentTouch && document instanceof DocumentTouch);
-
-    /**
      * Event namespace
      *
      * @type {string}
@@ -320,54 +312,50 @@
         }
     };
 
-    // If we are not in a touch compatible browser, map tap event to the click event
-    if (!TOUCH) {
+    /**
+     * Click event ID's that have already been converted to a tap
+     *
+     * @type {object}
+     * @private
+     */
+    var _converted = [];
 
-        /**
-         * Click event ID's that have already been converted to a tap
-         *
-         * @type {object}
-         * @private
-         */
-        var _converted = [];
+    /**
+     * Convert click events into tap events
+     *
+     * @param {jQuery.Event} e
+     * @private
+     */
+    var _onClick = function(e) {
+        var originalEvent = e.originalEvent;
+        if (e.isTrigger || _indexOf(_converted, originalEvent) >= 0) {
+            return;
+        }
 
-        /**
-         * Convert click events into tap events
-         *
-         * @param {jQuery.Event} e
-         * @private
-         */
-        var _onClick = function(e) {
-            var originalEvent = e.originalEvent;
-            if (e.isTrigger || _indexOf(_converted, originalEvent) >= 0) {
-                return;
-            }
+        // limit size of _converted array
+        if (_converted.length > 3) {
+            _converted.splice(0, _converted.length - 3);
+        }
 
-            // limit size of _converted array
-            if (_converted.length > 3) {
-                _converted.splice(0, _converted.length - 3);
-            }
+        _converted.push(originalEvent);
 
-            _converted.push(originalEvent);
+        var event = _createEvent(EVENT_NAME, e);
+        $(e.target).trigger(event);
+    };
 
-            var event = _createEvent(EVENT_NAME, e);
-            $(e.target).trigger(event);
-        };
-
-        // Bind click events that will be converted to a tap event
-        //
-        // Would have liked to use the bindType and delegateType properties
-        // to map the tap event to click events, but this does not allow us to prevent the
-        // tap event from triggering when a click event is manually triggered via .trigger().
-        // Tap should only trigger if the user physically clicks.
-        $.event.special[EVENT_NAME] = {
-            setup: function() {
-                $(this).on('click' + HELPER_NAMESPACE, _onClick);
-            },
-            teardown: function() {
-                $(this).off('click' + HELPER_NAMESPACE, _onClick);
-            }
-        };
-    }
+    // Bind click events that will be converted to a tap event
+    //
+    // Would have liked to use the bindType and delegateType properties
+    // to map the tap event to click events, but this does not allow us to prevent the
+    // tap event from triggering when a click event is manually triggered via .trigger().
+    // Tap should only trigger if the user physically clicks.
+    $.event.special[EVENT_NAME] = {
+        setup: function() {
+            $(this).on('click' + HELPER_NAMESPACE, _onClick);
+        },
+        teardown: function() {
+            $(this).off('click' + HELPER_NAMESPACE, _onClick);
+        }
+    };
 
 }(document, jQuery));
